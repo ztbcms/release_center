@@ -10,17 +10,6 @@ Release Center 是用于管理客户端应用版本和提供版本检测接口�
 php think module:install release_center
 ```
 
-为使用公开版本检测地址 `/release-center/api/v1/check`，需要在宿主项目的 `tp6/config/app.php` 中保留以下应用映射：
-
-```php
-'app_map' => [
-    'release-center' => 'release_center',
-    'release_center' => 'release_center',
-],
-```
-
-第二条映射用于保证后台菜单和权限地址可正常访问。
-
 安装后，后台会出现“Release Center / 应用管理 / 版本管理”菜单。
 
 卸载模块：
@@ -44,7 +33,7 @@ php think module:uninstall release_center --force
 ## 版本检查接口
 
 ```http
-GET /release-center/api/v1/check?app_key=mall_app&current_build=105
+GET /release_center/api/check?app_key=mall_app&current_build=105
 ```
 
 有更新时返回：
@@ -75,6 +64,4 @@ GET /release-center/api/v1/check?app_key=mall_app&current_build=105
 
 模块缓存每个应用的最新启用版本，缓存有效期为 7 天。
 
-发布、编辑、撤回、恢复版本以及启用、禁用应用后，不会自动清理缓存。需要在“版本管理”页面点击“清理版本缓存”，变更才会立即对客户端生效。
-
-未手动清理时，旧版本信息最长保留 7 天。
+发布、编辑、撤回、恢复版本以及启用、禁用应用后，会自动清理对应应用的缓存并立即生效。“清理版本缓存”保留用于异常排查和人工恢复。

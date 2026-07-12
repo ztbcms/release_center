@@ -12,6 +12,7 @@ class ReleaseCacheService
 {
     const CACHE_PREFIX = 'release_center:latest:';
     const CACHE_TTL = 604800;
+    const EMPTY_VERSION_MARKER = '_empty_version';
 
     /**
      * 构建应用版本缓存Key
@@ -33,6 +34,9 @@ class ReleaseCacheService
     public function getLatest(string $appKey)
     {
         $value = Cache::get($this->cacheKey($appKey));
+        if (is_array($value) && !empty($value[self::EMPTY_VERSION_MARKER])) {
+            return [];
+        }
         if (!is_array($value) || empty($value['build'])) {
             return null;
         }
@@ -48,6 +52,9 @@ class ReleaseCacheService
      */
     public function setLatest(string $appKey, array $version): void
     {
+        if (empty($version)) {
+            $version = [self::EMPTY_VERSION_MARKER => true];
+        }
         Cache::set($this->cacheKey($appKey), $version, self::CACHE_TTL);
     }
 

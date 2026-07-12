@@ -77,7 +77,8 @@ class ReleaseCenterService
             'remark' => $remark,
             'update_time' => time(),
         ]);
-        return BaseController::createReturn(true, [], $this->withClearCacheTip('保存成功'));
+        (new ReleaseCacheService())->deleteLatest((string)$app['app_key']);
+        return BaseController::createReturn(true, [], '保存成功');
     }
 
     /**
@@ -92,6 +93,10 @@ class ReleaseCenterService
         if (!$this->isValidStatus($status)) {
             return BaseController::createReturn(false, [], '状态参数不正确');
         }
+        $app = (new ReleaseAppModel())->where('id', $id)->find();
+        if (!$app) {
+            return BaseController::createReturn(false, [], '应用不存在');
+        }
         $affected = (new ReleaseAppModel())->where('id', $id)->update([
             'status' => $status,
             'update_time' => time(),
@@ -99,7 +104,8 @@ class ReleaseCenterService
         if ($affected === false || $affected === 0) {
             return BaseController::createReturn(false, [], '应用不存在或状态未变化');
         }
-        return BaseController::createReturn(true, [], $this->withClearCacheTip('操作成功'));
+        (new ReleaseCacheService())->deleteLatest((string)$app['app_key']);
+        return BaseController::createReturn(true, [], '操作成功');
     }
 
     /**
@@ -152,7 +158,8 @@ class ReleaseCenterService
                 'create_time' => $now,
                 'update_time' => $now,
             ]);
-            return BaseController::createReturn(true, ['id' => intval($id)], $this->withClearCacheTip('发布成功'));
+            (new ReleaseCacheService())->deleteLatest((string)$app['app_key']);
+            return BaseController::createReturn(true, ['id' => intval($id)], '发布成功');
         } catch (\Throwable $e) {
             return BaseController::createReturn(false, [], '发布失败，Build 可能已存在');
         }
@@ -176,12 +183,17 @@ class ReleaseCenterService
         if ($downloadUrl !== '' && !$this->isValidDownloadUrl($downloadUrl)) {
             return BaseController::createReturn(false, [], '下载地址仅支持 HTTP 或 HTTPS');
         }
+        $app = (new ReleaseAppModel())->where('id', intval($version['app_id']))->find();
+        if (!$app) {
+            return BaseController::createReturn(false, [], '所属应用不存在');
+        }
         (new ReleaseVersionModel())->where('id', $id)->update([
             'download_url' => $downloadUrl,
             'release_note' => $releaseNote,
             'update_time' => time(),
         ]);
-        return BaseController::createReturn(true, [], $this->withClearCacheTip('保存成功'));
+        (new ReleaseCacheService())->deleteLatest((string)$app['app_key']);
+        return BaseController::createReturn(true, [], '保存成功');
     }
 
     /**
@@ -196,6 +208,14 @@ class ReleaseCenterService
         if (!$this->isValidStatus($status)) {
             return BaseController::createReturn(false, [], '状态参数不正确');
         }
+        $version = (new ReleaseVersionModel())->where('id', $id)->find();
+        if (!$version) {
+            return BaseController::createReturn(false, [], '版本不存在');
+        }
+        $app = (new ReleaseAppModel())->where('id', intval($version['app_id']))->find();
+        if (!$app) {
+            return BaseController::createReturn(false, [], '所属应用不存在');
+        }
         $affected = (new ReleaseVersionModel())->where('id', $id)->update([
             'status' => $status,
             'update_time' => time(),
@@ -204,7 +224,8 @@ class ReleaseCenterService
             return BaseController::createReturn(false, [], '版本不存在或状态未变化');
         }
         $message = $status === ReleaseVersionModel::STATUS_DISABLE ? '撤回成功' : '恢复成功';
-        return BaseController::createReturn(true, [], $this->withClearCacheTip($message));
+        (new ReleaseCacheService())->deleteLatest((string)$app['app_key']);
+        return BaseController::createReturn(true, [], $message);
     }
 
     /**
@@ -233,6 +254,7 @@ class ReleaseCenterService
             ->order('build desc')
             ->find();
         if (!$version) {
+            $cache->setLatest($appKey, []);
             return BaseController::createReturn(true, []);
         }
         $data = $this->formatPublicVersion($version->toArray());
@@ -374,14 +396,4 @@ class ReleaseCenterService
         return in_array($status, [ReleaseAppModel::STATUS_ENABLE, ReleaseAppModel::STATUS_DISABLE], true);
     }
 
-    /**
-     * 拼接清理缓存提示
-     *
-     * @param string $message 原始提示
-     * @return string
-     */
-    private function withClearCacheTip(string $message): string
-    {
-        return $message . '。如需立即对客户端生效，请清理版本缓存。';
-    }
 }
