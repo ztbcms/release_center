@@ -19,23 +19,36 @@
             <?php } ?>
         </div>
 
-        <el-table :data="list" v-loading="loading" highlight-current-row style="width: 100%;">
+        <el-table :data="list" v-loading="loading" highlight-current-row class="version-list-table" style="width: 100%;">
             <el-table-column label="应用" min-width="160">
                 <template slot-scope="scope">
                     <div>{{ scope.row.app_name }}</div>
                     <div class="cell-tip">{{ scope.row.app_key }}</div>
                 </template>
             </el-table-column>
-            <el-table-column label="Version" prop="version" min-width="130"></el-table-column>
-            <el-table-column label="Build" prop="build" width="100" align="center"></el-table-column>
-            <el-table-column label="下载地址" min-width="240">
-                <template slot-scope="scope"><a v-if="scope.row.download_url" :href="scope.row.download_url" target="_blank">{{ scope.row.download_url }}</a><span v-else>-</span></template>
+            <el-table-column label="版本" width="150">
+                <template slot-scope="scope">
+                    <div class="version-number">{{ scope.row.version }}</div>
+                    <div class="cell-tip">Build {{ scope.row.build }}</div>
+                </template>
+            </el-table-column>
+            <el-table-column label="更新说明" min-width="420">
+                <template slot-scope="scope">
+                    <div v-if="scope.row.release_note && scope.row.release_note.trim()" class="release-note-cell">{{ scope.row.release_note }}</div>
+                    <span v-else class="cell-tip">暂无更新说明</span>
+                </template>
+            </el-table-column>
+            <el-table-column label="下载地址" width="110" align="center">
+                <template slot-scope="scope">
+                    <el-button v-if="scope.row.download_url" type="text" size="mini" icon="el-icon-document-copy" @click="copyDownloadUrl(scope.row.download_url)">复制地址</el-button>
+                    <span v-else class="cell-tip">未设置</span>
+                </template>
             </el-table-column>
             <el-table-column label="发布时间" prop="publish_time_text" width="160"></el-table-column>
-            <el-table-column label="状态" width="100" align="center">
+            <el-table-column label="状态" width="90" align="center">
                 <template slot-scope="scope"><el-tag size="small" :type="scope.row.status == 1 ? 'success' : 'warning'">{{ scope.row.status_text }}</el-tag></template>
             </el-table-column>
-            <el-table-column label="操作" width="180" fixed="right" align="center">
+            <el-table-column label="操作" width="140" fixed="right" align="center">
                 <template slot-scope="scope">
                     <?php if (\app\admin\service\AdminUserService::getInstance()->hasPermission('release_center', 'admin.version', 'edit')) { ?>
                     <el-button type="text" size="mini" @click="openForm(scope.row)">编辑</el-button>
@@ -90,6 +103,10 @@
     .small-filter { width: 120px; }
     .pagination-container { padding: 24px 0 0; text-align: right; }
     .cell-tip, .form-tip { color: #909399; font-size: 12px; line-height: 18px; }
+    .version-list-table .el-table__row td { vertical-align: top; }
+    .version-list-table .version-number { font-weight: 600; overflow-wrap: anywhere; }
+    .version-list-table .release-note-cell { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 22px; }
+
 </style>
 
 <script>
@@ -113,6 +130,34 @@
                 }
             },
             methods: {
+                /**
+                 * 复制完整下载地址，兼容非 HTTPS 的本地后台
+                 *
+                 * @param {string} url 下载地址
+                 * @return {Promise<void>}
+                 */
+                copyDownloadUrl: async function (url) {
+                    try {
+                        if (navigator.clipboard && window.isSecureContext) {
+                            await navigator.clipboard.writeText(url);
+                        } else {
+                            var input = document.createElement('textarea');
+                            input.value = url;
+                            input.style.position = 'fixed';
+                            input.style.opacity = '0';
+                            document.body.appendChild(input);
+                            try {
+                                input.select();
+                                if (!document.execCommand('copy')) throw new Error('copy failed');
+                            } finally {
+                                input.remove();
+                            }
+                        }
+                        this.$message.success('下载地址已复制');
+                    } catch (error) {
+                        this.$message.error('复制失败，请稍后重试');
+                    }
+                },
                 getAppOptions: function () {
                     var that = this;
                     $.ajax({
